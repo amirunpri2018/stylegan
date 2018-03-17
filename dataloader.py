@@ -44,26 +44,23 @@ def load_dataset(aozora, wikipedia, words_length=100, chars_length=200):
     df['chars'] = df.text.apply(lambda x: ' '.join(x))
     char_tokenizer = load_tokenizer(df.chars)
 
-    # words level and pos level
+    # pos level
     mecab = MeCab.Tagger('-O chasen')
     df['chasen'] = df.text.apply(lambda x: mecab.parse(x).strip())
-    df['wakati'] = df.chasen.apply(lambda x: ' '.join(
-        [word.split('\t')[0] for word in x.split('\n')[:-1]]))
     df['pos'] = df.chasen.apply(lambda x: ' '.join(
         [word.split('\t')[3] for word in x.split('\n')[:-1]]))
-    word_tokenizer = load_tokenizer(df.wakati)
     pos_tokenizer = load_tokenizer(df.pos)
 
     # 非効率かもしれないが、こちらでlengthによる絞り込みを行う。
-    words_len_mask = df.wakati.apply(lambda x: x.count(' ') <= words_length-3)  # <s>, </s>のぶん
     char_len_mask = df.chars.apply(lambda x: x.count(' ') <= chars_length-3)
+    words_len_mask = df.pos.apply(lambda x: x.count(' ') <= words_length-3)  # <s>, </s>のぶん
     df = df[words_len_mask & char_len_mask].copy()
 
-    train_C, test_C, train_W, test_W, train_P, test_P, train_A, test_A = train_test_split(
-        df.chars, df.wakati, df.pos, df.author, test_size=0.1, random_state=42
+    train_C, test_C, train_P, test_P, train_A, test_A = train_test_split(
+        df.chars, df.pos, df.author, test_size=0.1, random_state=42
     )
 
-    return (train_C, test_C), (train_W, test_W), (train_P, test_P), (train_A, test_A), (char_tokenizer, word_tokenizer, pos_tokenizer)
+    return (train_C, test_C), (train_P, test_P), (train_A, test_A), (char_tokenizer, pos_tokenizer)
 
 
 def batch_generator(T, A, tokenizer, batch_size=200, max_len=100):
@@ -96,8 +93,8 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100):
             yield x, y
 
 
-def pretrain_batch_generator(W, A, word_tokenizer, batch_size=200, max_len=100):
-    for wakati, author in batch_generator(W, A, word_tokenizer, batch_size, max_len):
+def pretrain_batch_generator(W, A, char_tokenizer, batch_size=200, max_len=100):
+    for chars, author in batch_generator(W, A, char_tokenizer, batch_size, max_len):
         train_target = np.hstack(
-            (wakati[:, 1:], np.zeros((len(wakati), 1), dtype=np.int32)))
-        yield [wakati, author, wakati], np.expand_dims(train_target, -1)
+            (chars[:, 1:], np.zeros((len(chars), 1), dtype=np.int32)))
+        yield [chars, author, chars], np.expand_dims(train_target, -1)

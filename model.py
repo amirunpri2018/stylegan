@@ -8,10 +8,10 @@ from keras.models import Model
 
 
 def get_generator(vocab_size=30000, emb_dim=128, hid_dim=128, condition_num=21, max_words=100):
-    """分かち書きのGenerator
+    """文字のGenerator
 
-    分かち書きを入力として、エンコーディングする。
-    それに作家の条件をつけて分かち書きの状態でデコードする。
+    文字を入力として、エンコーディングする。
+    それに作家の条件をつけて文字の状態でデコードする。
     入力する作家は、青空文庫の20作家とwikipediaである。
 
 
@@ -116,18 +116,6 @@ def get_discriminator(
         convs.append(x)
     char_cnn = Concatenate()(convs)
 
-    # wakati Level RNN
-    wakati_input = Input(shape=(max_words,))  # 最大入力単語数100
-    x = Embedding(word_vocab_size, word_emb_dim, mask_zero=True)(wakati_input)
-    x = Bidirectional(
-        LSTM(word_hid_dim, return_sequences=True, activation='relu'))(x)
-    x = Dropout(0.5)(x)
-    x = Bidirectional(
-        LSTM(word_hid_dim, return_sequences=True, activation='relu'))(x)
-    x = Dropout(0.5)(x)
-    _, *wakati_states = Bidirectional(LSTM(word_hid_dim, return_state=True))(x)
-    wakati_rnn = Concatenate()(wakati_states)
-
     # POS Level RNN
     pos_input = Input(shape=(max_words,))  # 最大入力単語数
     x = Embedding(pos_vocab_size, pos_emb_dim, mask_zero=True)(pos_input)
@@ -142,14 +130,14 @@ def get_discriminator(
 
     # condition input and judge
     condition_input = Input(shape=(condition_num,))
-    x = Concatenate()([char_cnn, wakati_rnn, pos_rnn, condition_input])
+    x = Concatenate()([char_cnn, pos_rnn, condition_input])
     x = Dropout(0.5)(x)
     x = Dense(64, activation='relu')(x)
     x = Dropout(0.5)(x)
     output = Dense(1, activation='sigmoid')(x)
 
     discriminator = Model(
-        inputs=[char_input, wakati_input, pos_input, condition_input],
+        inputs=[char_input, pos_input, condition_input],
         outputs=[output]
     )
 
