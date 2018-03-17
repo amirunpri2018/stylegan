@@ -13,10 +13,10 @@ def train_pretrain_generator(pretrain_generator, train_W, test_W, train_A, test_
     """
     
     pretrain_generator.fit_generator(
-        generator=pre_train_batch_generator(train_W, train_A, word_tokenizer),
+        generator=pretrain_batch_generator(train_W, train_A, word_tokenizer),
         steps_per_epoch=100,
         epochs=1000, verbose=2,
-        validation_data=pre_train_batch_generator(test_W, test_A, word_tokenizer),
+        validation_data=pretrain_batch_generator(test_W, test_A, word_tokenizer),
         validation_steps=1
     )
 
