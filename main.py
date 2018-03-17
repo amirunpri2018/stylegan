@@ -11,10 +11,10 @@ from nltk.translate.bleu_score import sentence_bleu
 def train_pretrain_generator(pretrain_generator, train_W, test_W, train_A, test_A, char_tokenizer):
     """GeneratorのTraining
     """
-    
+    pretrain_generator.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
     pretrain_generator.fit_generator(
         generator=pretrain_batch_generator(train_W, train_A, char_tokenizer),
-        steps_per_epoch=100,
+        steps_per_epoch=1000,
         epochs=1000, verbose=2,
         validation_data=pretrain_batch_generator(test_W, test_A, char_tokenizer),
         validation_steps=1
