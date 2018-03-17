@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from model import get_generator, get_discriminator
-from dataloader import pre_train_batch_generator
+from dataloader import pretrain_batch_generator
 
 from dataloader import load_dataset
 
