@@ -7,8 +7,8 @@ from keras.layers import (LSTM, BatchNormalization, Bidirectional, Concatenate,
 from keras.models import Model
 
 
-def get_encoder(vocab_size=30000, emb_dim=128, hid_dim=128, condition_num=21, max_words=100):
-    """分かち書きのEncoder
+def get_generator(vocab_size=30000, emb_dim=128, hid_dim=128, condition_num=21, max_words=100):
+    """分かち書きのGenerator
 
     分かち書きを入力として、エンコーディングする。
     それに作家の条件をつけて分かち書きの状態でデコードする。
@@ -18,8 +18,6 @@ def get_encoder(vocab_size=30000, emb_dim=128, hid_dim=128, condition_num=21, ma
     Returns:
         pretrain_generator
         generator
-        encoder_model
-        decoder_model -- 使わないかもしれないが、デコーダー単体。隠れ状態の初期値。
     """
     # Encoder
     encoder_input = Input(shape=(max_words,))  # 最大入力単語数100
@@ -29,14 +27,8 @@ def get_encoder(vocab_size=30000, emb_dim=128, hid_dim=128, condition_num=21, ma
     x = Dropout(0.5)(x)
     _, *encoder_states = Bidirectional(LSTM(hid_dim, return_state=True))(x)
 
-    encoder_model = Model(inputs=[encoder_input], outputs=encoder_states)
-
     # Decoder
     # Inputs
-    decoder_initial_states_inputs = [
-        Input(shape=(hid_dim,)), Input(shape=(hid_dim,)),
-        Input(shape=(hid_dim,)), Input(shape=(hid_dim,))
-    ]
     decoder_condition_input = Input(
         shape=(condition_num,))  # 20人の作家 + wikipedia
     decoder_input = Input(shape=(max_words,))
@@ -47,7 +39,7 @@ def get_encoder(vocab_size=30000, emb_dim=128, hid_dim=128, condition_num=21, ma
     decoder_lstm2 = LSTM(hid_dim, return_sequences=True, return_state=True)
     decoder_dense = Dense(vocab_size, use_bias=True, activation='softmax')
 
-    hidden_states = Concatenate()(decoder_initial_states_inputs +
+    hidden_states = Concatenate()(encoder_states +
                                   [decoder_condition_input])
     h_state = Dense(hid_dim, activation='relu')(hidden_states)
     c_state = Dense(hid_dim, activation='relu')(hidden_states)
@@ -59,18 +51,12 @@ def get_encoder(vocab_size=30000, emb_dim=128, hid_dim=128, condition_num=21, ma
     x = Dropout(0.5)(x)
     decoder_outputs = decoder_dense(x)
 
-    decoder_model = Model(
-        decoder_initial_states_inputs +
-        [decoder_condition_input, decoder_input],
-        decoder_outputs
-    )
-
     # pretrain用モデル
     pretrain_generator = Model(
-        encoder_model.inputs + [decoder_condition_input, decoder_input],
-        decoder_model(encoder_model.outputs +
-                      [decoder_condition_input, decoder_input])
+        [encoder_input, decoder_condition_input, decoder_input],
+        decoder_outputs
     )
+    pretrain_generator.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
 
     # 本格的に訓練されるgenerator
     generator_input = Input(shape=(1,))  # 1単語入力
@@ -94,8 +80,9 @@ def get_encoder(vocab_size=30000, emb_dim=128, hid_dim=128, condition_num=21, ma
         generator_states1_inputs + generator_states2_inputs,
         [generator_output] + hidden_states1 + hidden_states2
     )
+    
 
-    return pretrain_generator, generator, encoder_model, decoder_model
+    return pretrain_generator, generator
 
 
 # seq_encoder_decoder.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
