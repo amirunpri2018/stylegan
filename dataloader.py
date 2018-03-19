@@ -22,7 +22,7 @@ AUTHORS = ['吉川英治', '宮本百合子', '豊島与志雄', '海野十三',
 
 
 def load_tokenizer(lines):
-    tokenizer = Tokenizer(filters="")
+    tokenizer = Tokenizer(filters="", oov_token="<unk>")
     whole_texts = []
     for line in lines:
         whole_texts.append("<s> " + line.strip() + " </s>")
@@ -66,11 +66,11 @@ def load_dataset(aozora, wikipedia, words_length=100, chars_length=200, sample_s
     return (train_C, test_C), (train_P, test_P), (train_A, test_A), (char_tokenizer, pos_tokenizer)
 
 
-def batch_generator(T, A, tokenizer, batch_size=200, max_len=100):
+def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=True):
     """generatorのpretraing用データローダー
 
     Arguments:
-        W -- テキスト
+        T -- テキスト
         A -- 著者
     """
 
@@ -79,7 +79,8 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100):
     A = np_utils.to_categorical(A)
 
     while True:
-        T, A = shuffle(T, A)
+        if shuffle_flag:
+            T, A = shuffle(T, A)
 
         for i in range(data_size//batch_size):
             x = T[i*batch_size: (i+1)*batch_size]
@@ -96,8 +97,8 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100):
             yield x, y
 
 
-def pretrain_batch_generator(W, A, char_tokenizer, batch_size=200, max_len=100):
-    for chars, author in batch_generator(W, A, char_tokenizer, batch_size, max_len):
+def pretrain_batch_generator(C, A, char_tokenizer, batch_size=200, max_len=100):
+    for chars, author in batch_generator(C, A, char_tokenizer, batch_size, max_len):
         train_target = np.hstack(
             (chars[:, 1:], np.zeros((len(chars), 1), dtype=np.int32)))
         yield [chars, author, chars], np.expand_dims(train_target, -1)

@@ -59,35 +59,41 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, m
 
     # 本格的に訓練されるgenerator
     generator_input = Input(shape=(1,))  # 1単語入力
-    generator_condition_input = Input(shape=(condition_num, ))  # 作家
-    generator_states1_inputs = [Input(shape=(hid_dim,)), Input(
-        shape=(hid_dim,))]  # decoder_lstm1の隠れ層
-    generator_states2_inputs = [Input(shape=(hid_dim,)), Input(
-        shape=(hid_dim,))]  # decoder_lstm2の隠れ層
+    generator_states1_inputs = [
+        Input(shape=(hid_dim,)), Input(shape=(hid_dim,))
+    ]  # decoder_lstm1の隠れ層
+    generator_states2_inputs = [
+        Input(shape=(hid_dim,)), Input(shape=(hid_dim,))
+    ]  # decoder_lstm2の隠れ層
 
     x = decoder_embedding(generator_input)
-    x, *hidden_states1 = decoder_lstm1(x,
-                                       initial_state=generator_states1_inputs)
+    x, *hidden_states1 = decoder_lstm1(
+        x,
+        initial_state=generator_states1_inputs)
     x = Dropout(0.5)(x)
-    x, *hidden_states2 = decoder_lstm2(x,
-                                       initial_state=generator_states2_inputs)
+    x, *hidden_states2 = decoder_lstm2(
+        x,
+        initial_state=generator_states2_inputs)
     x = Dropout(0.5)(x)
     generator_output = decoder_dense(x)
 
     generator = Model(
-        [generator_input, generator_condition_input] +
-        generator_states1_inputs + generator_states2_inputs,
+        [generator_input] + generator_states1_inputs + generator_states2_inputs,
         [generator_output] + hidden_states1 + hidden_states2
     )
-    
 
-    return pretrain_generator, generator
+    encoder = Model(
+        [encoder_input, decoder_condition_input],
+        [h_state, c_state]
+    )
+
+    return pretrain_generator, generator, encoder
 
 
 # seq_encoder_decoder.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
 def get_discriminator(
         char_emb_dim=128, num_filters=64, filter_sizes=[2, 3, 4, 5], char_vocab_size=3000, max_chars=200, word_vocab_size=30000, word_emb_dim=128, word_hid_dim=128, max_words=100,
-        pos_vocab_size=100, pos_emb_dim=16, pos_hid_dim=128, 
+        pos_vocab_size=100, pos_emb_dim=16, pos_hid_dim=128,
         condition_num=21):
     """複数の種類のDiscriminatorを組み合わせたDiscriminator。
     分類するラベルは、true ,falseである。
@@ -102,7 +108,7 @@ def get_discriminator(
     # Character Level CNN
     char_input = Input(shape=(max_chars,))
     char_emb = Embedding(char_vocab_size, char_emb_dim)(char_input)
-    char_emb = Reshape((max_chars, char_emb_dim, 1))(char_emb) 
+    char_emb = Reshape((max_chars, char_emb_dim, 1))(char_emb)
     convs = []
     for filter_size in filter_sizes:
         x = Convolution2D(
