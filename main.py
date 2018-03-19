@@ -29,7 +29,6 @@ def generate_sequence(encoder, generator, char_tokenizer,
             y = np.reshape(y, (1, -1))
 
             states_value = encoder.predict([x, y])
-            states_value = states_value + states_value
 
             while True:
                 output_tokens, *states_value = generator.predict(
@@ -76,7 +75,7 @@ def train_pretrain_generator(pretrain_generator, train_C, test_C, train_A, test_
         validation_data=pretrain_batch_generator(
             test_C, test_A, char_tokenizer),
         validation_steps=1,
-        callbacks=[checkpoint_cb, simple_test_cb, TQDMNotebookCallback()]
+        callbacks=[checkpoint_cb, simple_test_cb]
     )
 
 

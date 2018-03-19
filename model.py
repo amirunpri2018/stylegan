@@ -22,9 +22,6 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, m
     # Encoder
     encoder_input = Input(shape=(max_chars,))  # 最大入力単語数100
     x = Embedding(vocab_size, emb_dim, mask_zero=True)(encoder_input)
-    x = Bidirectional(
-        LSTM(hid_dim, return_sequences=True, activation='relu'))(x)
-    x = Dropout(0.5)(x)
     _, *encoder_states = Bidirectional(LSTM(hid_dim, return_state=True))(x)
 
     # Decoder
@@ -35,8 +32,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, m
 
     # 生成時にも利用する層の定義
     decoder_embedding = Embedding(vocab_size, emb_dim)
-    decoder_lstm1 = LSTM(hid_dim, return_sequences=True, return_state=True)
-    decoder_lstm2 = LSTM(hid_dim, return_sequences=True, return_state=True)
+    decoder_lstm = LSTM(hid_dim, return_sequences=True, return_state=True)
     decoder_dense = Dense(vocab_size, use_bias=True, activation='softmax')
 
     hidden_states = Concatenate()(encoder_states +
@@ -45,9 +41,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, m
     c_state = Dense(hid_dim, activation='relu')(hidden_states)
 
     x = decoder_embedding(decoder_input)
-    x, _, _ = decoder_lstm1(x, initial_state=[h_state, c_state])
-    x = Dropout(0.5)(x)
-    x, _, _ = decoder_lstm2(x, initial_state=[h_state, c_state])
+    x, _, _ = decoder_lstm(x, initial_state=[h_state, c_state])
     x = Dropout(0.5)(x)
     decoder_outputs = decoder_dense(x)
 
@@ -59,27 +53,20 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, m
 
     # 本格的に訓練されるgenerator
     generator_input = Input(shape=(1,))  # 1単語入力
-    generator_states1_inputs = [
+    generator_states_inputs = [
         Input(shape=(hid_dim,)), Input(shape=(hid_dim,))
-    ]  # decoder_lstm1の隠れ層
-    generator_states2_inputs = [
-        Input(shape=(hid_dim,)), Input(shape=(hid_dim,))
-    ]  # decoder_lstm2の隠れ層
+    ]  # decoder_lstmの隠れ層
 
     x = decoder_embedding(generator_input)
-    x, *hidden_states1 = decoder_lstm1(
+    x, *hidden_states = decoder_lstm(
         x,
-        initial_state=generator_states1_inputs)
-    x = Dropout(0.5)(x)
-    x, *hidden_states2 = decoder_lstm2(
-        x,
-        initial_state=generator_states2_inputs)
+        initial_state=generator_states_inputs)
     x = Dropout(0.5)(x)
     generator_output = decoder_dense(x)
 
     generator = Model(
-        [generator_input] + generator_states1_inputs + generator_states2_inputs,
-        [generator_output] + hidden_states1 + hidden_states2
+        [generator_input] + generator_states_inputs,
+        [generator_output] + hidden_states
     )
 
     encoder = Model(
