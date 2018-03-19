@@ -16,7 +16,6 @@ from model import get_discriminator, get_generator
 def generate_sequence(encoder, generator, char_tokenizer,
                       texts=["私は猫です。", "僕は犬です。"], authors=["夏目漱石", "森鴎外"], max_len=200):
 
-    detokenizer = {i: token for token, i in char_tokenizer.word_index.items()}
     bos_eos = char_tokenizer.texts_to_sequences(["<s>", "</s>"])
 
     results = []
@@ -41,7 +40,12 @@ def generate_sequence(encoder, generator, char_tokenizer,
                     break
 
             target_seq = np.array(sampled_token_index)
-            results.append((text, author, ''.join([detokenizer[i] for i in output_seq if i > 0])))
+            results.append(
+                (
+                    text, author,
+                    ''.join(char_tokenizer.texts_to_sequences(output_seq, return_words=True))
+                )
+            )
         return results
 
 
@@ -66,7 +70,8 @@ def train_pretrain_generator(pretrain_generator, train_C, test_C, train_A, test_
         optimizer='adam', loss='sparse_categorical_crossentropy')
 
     checkpoint_cb = ModelCheckpoint("models/pretrain_generator", period=10)
-    simple_test_cb = PretrainGeneratorCallBack(encoder, generator, char_tokenizer)
+    simple_test_cb = PretrainGeneratorCallBack(
+        encoder, generator, char_tokenizer)
 
     pretrain_generator.fit_generator(
         generator=pretrain_batch_generator(train_C, train_A, char_tokenizer),

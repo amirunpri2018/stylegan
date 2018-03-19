@@ -7,7 +7,8 @@ import MeCab
 import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
-from keras.preprocessing.text import Tokenizer
+#from keras.preprocessing.text import Tokenizer
+from my_tokenizer import MyTokenizer as Tokenizer
 from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
@@ -22,7 +23,7 @@ AUTHORS = ['吉川英治', '宮本百合子', '豊島与志雄', '海野十三',
 
 
 def load_tokenizer(lines):
-    tokenizer = Tokenizer(num_words=3, filters="", oov_token="<>")
+    tokenizer = Tokenizer(num_words=10000, oov_token="<UNK>")
     whole_texts = []
     for line in lines:
         whole_texts.append("<s> " + line.strip() + " </s>")
