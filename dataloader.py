@@ -30,12 +30,15 @@ def load_tokenizer(lines):
     return tokenizer
 
 
-def load_dataset(aozora, wikipedia, words_length=100, chars_length=200, sample_size=10000):
+def load_dataset(aozora, wikipedia, words_length=100, chars_length=200, sample_size=100000):
     # データセットの読み込み
     aozora_df = pd.read_csv(aozora)
     wikipedia_df = pd.read_csv(wikipedia)
     df = pd.concat([aozora_df, wikipedia_df])
-    df = df.sample(sample_size * 5)
+    try:
+        df = df.sample(sample_size * 3)
+    except ValueError:
+        pass
 
     # Author Mask
     author_mask = df.author.apply(lambda x: x in AUTHORS)
@@ -57,7 +60,10 @@ def load_dataset(aozora, wikipedia, words_length=100, chars_length=200, sample_s
     words_len_mask = df.pos.apply(lambda x: x.count(' ') <= words_length-3)  # <s>, </s>のぶん
     df = df[words_len_mask & char_len_mask].copy()
     
-    df = df.sample(sample_size)
+    try:
+        df = df.sample(sample_size)
+    except ValueError:
+        pass
 
     train_C, test_C, train_P, test_P, train_A, test_A = train_test_split(
         df.chars, df.pos, df.author, test_size=0.1, random_state=42
@@ -97,7 +103,7 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=T
             yield x, y
 
 
-def pretrain_batch_generator(C, A, char_tokenizer, batch_size=200, max_len=100):
+def pretrain_batch_generator(C, A, char_tokenizer, batch_size=200, max_len=200):
     for chars, author in batch_generator(C, A, char_tokenizer, batch_size, max_len):
         train_target = np.hstack(
             (chars[:, 1:], np.zeros((len(chars), 1), dtype=np.int32)))

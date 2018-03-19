@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from keras_tqdm import TQDMNotebookCallback
 
 from keras.callbacks import (Callback, EarlyStopping, ModelCheckpoint,
                              TensorBoard)
@@ -75,7 +76,7 @@ def train_pretrain_generator(pretrain_generator, train_C, test_C, train_A, test_
         validation_data=pretrain_batch_generator(
             test_C, test_A, char_tokenizer),
         validation_steps=1,
-        callbacks=[checkpoint_cb, ]
+        callbacks=[checkpoint_cb, simple_test_cb, TQDMNotebookCallback()]
     )
 
 
@@ -88,7 +89,7 @@ def main():
 
     # initialize
     pretrain_generator, generator, encoder = get_generator(
-        vocab_size=len(char_tokenizer.word_index), emb_dim=128, hid_dim=128, condition_num=21, max_chars=100
+        vocab_size=len(char_tokenizer.word_index), emb_dim=128, hid_dim=128, condition_num=21, max_chars=200
     )
     discriminator = get_discriminator()
 
