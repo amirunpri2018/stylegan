@@ -22,7 +22,7 @@ AUTHORS = ['吉川英治', '宮本百合子', '豊島与志雄', '海野十三',
 
 
 def load_tokenizer(lines):
-    tokenizer = Tokenizer(filters="", oov_token="<unk>")
+    tokenizer = Tokenizer(num_words=3, filters="", oov_token="<>")
     whole_texts = []
     for line in lines:
         whole_texts.append("<s> " + line.strip() + " </s>")

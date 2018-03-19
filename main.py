@@ -41,7 +41,7 @@ def generate_sequence(encoder, generator, char_tokenizer,
                     break
 
             target_seq = np.array(sampled_token_index)
-            results.append((text, author, ''.join([detokenizer[i] for i in output_seq])))
+            results.append((text, author, ''.join([detokenizer[i] for i in output_seq if i > 0])))
         return results
 
 
