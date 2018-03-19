@@ -76,7 +76,7 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=T
 
     data_size = T.shape[0]
     A = A.apply(lambda x: AUTHORS.index(x))
-    A = np_utils.to_categorical(A)
+    A = np_utils.to_categorical(A, num_classes=len(AUTHORS))
 
     while True:
         if shuffle_flag:

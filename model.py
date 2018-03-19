@@ -7,7 +7,7 @@ from keras.layers import (LSTM, BatchNormalization, Bidirectional, Concatenate,
 from keras.models import Model
 
 
-def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, max_words=100):
+def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, max_chars=200):
     """分かち書きのGenerator
 
     分かち書きを入力として、エンコーディングする。
@@ -20,7 +20,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, m
         generator
     """
     # Encoder
-    encoder_input = Input(shape=(max_words,))  # 最大入力単語数100
+    encoder_input = Input(shape=(max_chars,))  # 最大入力単語数100
     x = Embedding(vocab_size, emb_dim, mask_zero=True)(encoder_input)
     x = Bidirectional(
         LSTM(hid_dim, return_sequences=True, activation='relu'))(x)
@@ -31,7 +31,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, condition_num=21, m
     # Inputs
     decoder_condition_input = Input(
         shape=(condition_num,))  # 20人の作家 + wikipedia
-    decoder_input = Input(shape=(max_words,))
+    decoder_input = Input(shape=(max_chars,))
 
     # 生成時にも利用する層の定義
     decoder_embedding = Embedding(vocab_size, emb_dim)
