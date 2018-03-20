@@ -13,7 +13,7 @@ from dataloader import load_dataset, pretrain_batch_generator, batch_generator
 from model import get_discriminator, get_generator
 
 
-def generate_sequence(encoder, word_decoder, attention, word_tokenizer,
+def generate_sequence(encoder, word_decoder, attention_model, word_tokenizer,
                       texts=["私は猫です。", "僕は犬です。"], authors=["夏目漱石", "森鴎外"], max_len=50):
 
     bos_eos = word_tokenizer.texts_to_sequences(["<s>", "</s>"])
@@ -22,11 +22,10 @@ def generate_sequence(encoder, word_decoder, attention, word_tokenizer,
         word_tokenizer, batch_size=len(texts), max_len=max_len):
         break
 
-    results = []        
+    sequences = []        
     for text, author, x, y in zip(texts, authors, X, Y):
         x = np.reshape(x, (1, -1))
         y = np.reshape(y, (1, -1))
-
         target_seq = np.array(bos_eos[0])
         output_seq = bos_eos[0][:]
         attention_seq = np.empty((0,max_len))
@@ -36,7 +35,7 @@ def generate_sequence(encoder, word_decoder, attention, word_tokenizer,
 
         while True:
             decoded_seq, *states_value = word_decoder.predict([target_seq] + states_value)
-            output_tokens, attention = attention.predict([encoded_seq, decoded_seq, y])  # condition
+            output_tokens, attention = attention_model.predict([encoded_seq, decoded_seq, np.array([y])])  # condition
             sampled_token_index = [np.argmax(output_tokens[0, -1, :])]
             
             if prev_token_index == sampled_token_index:
@@ -51,12 +50,14 @@ def generate_sequence(encoder, word_decoder, attention, word_tokenizer,
             target_seq = np.array(sampled_token_index)
             prev_token_index = sampled_token_index
 
-        results.append(
-            (
-                text, author,
-                ''.join(word_tokenizer.texts_to_sequences(output_seq, return_words=True))
-            )
-        )
+        sequences.append(output_seq)
+    
+    words_list = word_tokenizer.sequences_to_texts(sequences, return_words=True)
+    
+    results = []
+    for text, author, words in zip(texts, authors, words_list):
+        results.append((text, author, ''.join(words)))
+    
     return results
 
 
@@ -94,7 +95,6 @@ def pretrain_generator(generator, train_C, test_C, train_A, test_A, word_tokeniz
         validation_steps=1,
         callbacks=[checkpoint_cb, simple_test_cb]
     )
-
 
 def main():
     aozora = "./data/sample_aozora.csv"
