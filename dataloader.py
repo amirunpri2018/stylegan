@@ -31,7 +31,7 @@ def load_tokenizer(lines):
     return tokenizer
 
 
-def load_dataset(aozora, wikipedia, words_length=100, chars_length=200, sample_size=100000):
+def load_dataset(aozora, wikipedia, words_length=50, chars_length=100, sample_size=100000):
     # データセットの読み込み
     aozora_df = pd.read_csv(aozora)
     wikipedia_df = pd.read_csv(wikipedia)
@@ -49,16 +49,19 @@ def load_dataset(aozora, wikipedia, words_length=100, chars_length=200, sample_s
     df['chars'] = df.text.apply(lambda x: ' '.join(x))
     char_tokenizer = load_tokenizer(df.chars)
 
-    # pos level
+    # words level and pos level
     mecab = MeCab.Tagger('-O chasen')
     df['chasen'] = df.text.apply(lambda x: mecab.parse(x).strip())
+    df['wakati'] = df.chasen.apply(lambda x: ' '.join(
+        [word.split('\t')[0] for word in x.split('\n')[:-1]]))
     df['pos'] = df.chasen.apply(lambda x: ' '.join(
         [word.split('\t')[3] for word in x.split('\n')[:-1]]))
+    word_tokenizer = load_tokenizer(df.wakati)
     pos_tokenizer = load_tokenizer(df.pos)
 
     # 非効率かもしれないが、こちらでlengthによる絞り込みを行う。
+    words_len_mask = df.wakati.apply(lambda x: x.count(' ') <= words_length-3)  # <s>, </s>のぶん
     char_len_mask = df.chars.apply(lambda x: x.count(' ') <= chars_length-3)
-    words_len_mask = df.pos.apply(lambda x: x.count(' ') <= words_length-3)  # <s>, </s>のぶん
     df = df[words_len_mask & char_len_mask].copy()
     
     try:
@@ -66,11 +69,13 @@ def load_dataset(aozora, wikipedia, words_length=100, chars_length=200, sample_s
     except ValueError:
         pass
 
-    train_C, test_C, train_P, test_P, train_A, test_A = train_test_split(
-        df.chars, df.pos, df.author, test_size=0.1, random_state=42
+    train_C, test_C, train_W, test_W, train_P, test_P, train_A, test_A = train_test_split(
+        df.chars, df.wakati, df.pos, df.author, test_size=0.1, random_state=42
     )
 
-    return (train_C, test_C), (train_P, test_P), (train_A, test_A), (char_tokenizer, pos_tokenizer)
+    return (train_C, test_C), (train_W, test_W), (train_P, test_P), (train_A, test_A), (char_tokenizer, word_tokenizer, pos_tokenizer)
+
+
 
 
 def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=True):
