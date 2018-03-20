@@ -109,8 +109,9 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=T
             yield x, y
 
 
-def pretrain_batch_generator(C, A, char_tokenizer, batch_size=200, max_len=200):
-    for chars, author in batch_generator(C, A, char_tokenizer, batch_size, max_len):
+def pretrain_batch_generator(W, A, word_tokenizer, batch_size=200, words_len=50):
+    for words, author in batch_generator(W, A, word_tokenizer, batch_size, words_len):
+        author = np.vstack([author] * words_len)
         train_target = np.hstack(
-            (chars[:, 1:], np.zeros((len(chars), 1), dtype=np.int32)))
-        yield [chars, author, chars], np.expand_dims(train_target, -1)
+            (words[:, 1:], np.zeros((len(words), 1), dtype=np.int32)))
+        yield [words, words, author], np.expand_dims(train_target, -1)

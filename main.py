@@ -2,7 +2,6 @@
 
 import numpy as np
 import pandas as pd
-from keras_tqdm import TQDMNotebookCallback
 
 from keras.callbacks import (Callback, EarlyStopping, ModelCheckpoint,
                              TensorBoard)
@@ -19,28 +18,31 @@ def generate_sequence(encoder, word_decoder, attention_model, word_tokenizer,
     bos_eos = word_tokenizer.texts_to_sequences(["<s>", "</s>"])
 
     for X, Y in batch_generator(pd.Series(texts), pd.Series(authors),
-        word_tokenizer, batch_size=len(texts), max_len=max_len):
+                                word_tokenizer, batch_size=len(texts), max_len=max_len):
         break
 
-    sequences = []        
+    sequences = []
     for text, author, x, y in zip(texts, authors, X, Y):
         x = np.reshape(x, (1, -1))
         y = np.reshape(y, (1, -1))
         target_seq = np.array(bos_eos[0])
         output_seq = bos_eos[0][:]
-        attention_seq = np.empty((0,max_len))
+        attention_seq = np.empty((0, max_len))
         prev_token_index = bos_eos[0][:]  # 1つ前のトークン
 
         encoded_seq, *states_value = encoder.predict(x)
 
         while True:
-            decoded_seq, *states_value = word_decoder.predict([target_seq] + states_value)
-            output_tokens, attention = attention_model.predict([encoded_seq, decoded_seq, np.array([y])])  # condition
+            decoded_seq, * \
+                states_value = word_decoder.predict(
+                    [target_seq] + states_value)
+            output_tokens, attention = attention_model.predict(
+                [encoded_seq, decoded_seq, np.array([y])])  # condition
             sampled_token_index = [np.argmax(output_tokens[0, -1, :])]
-            
+
             if prev_token_index == sampled_token_index:
                 break
-            
+
             output_seq += sampled_token_index
             attention_seq = np.append(attention_seq, attention[0], axis=0)
 
@@ -51,13 +53,14 @@ def generate_sequence(encoder, word_decoder, attention_model, word_tokenizer,
             prev_token_index = sampled_token_index
 
         sequences.append(output_seq)
-    
-    words_list = word_tokenizer.sequences_to_texts(sequences, return_words=True)
-    
+
+    words_list = word_tokenizer.sequences_to_texts(
+        sequences, return_words=True)
+
     results = []
     for text, author, words in zip(texts, authors, words_list):
         results.append((text, author, ''.join(words)))
-    
+
     return results
 
 
@@ -73,10 +76,11 @@ class PretrainGeneratorCallBack(Callback):
         pass
 
     def on_epoch_end(self, epoch, logs=None):
-        generate_sequence(self._encoder, self._woed_decoder, self._attention, self._tokenizer)
+        generate_sequence(self._encoder, self._woed_decoder,
+                          self._attention, self._tokenizer)
 
 
-def pretrain_generator(generator, train_C, test_C, train_A, test_A, word_tokenizer, encoder, word_decoder, attention):
+def pretrain_generator(generator, train_W, test_W, train_A, test_A, word_tokenizer, encoder, word_decoder, attention):
     """GeneratorのTraining
     """
     generator.compile(
@@ -87,14 +91,16 @@ def pretrain_generator(generator, train_C, test_C, train_A, test_A, word_tokeniz
         encoder, word_decoder, attention, word_tokenizer)
 
     generator.fit_generator(
-        generator=pretrain_batch_generator(train_C, train_A, word_tokenizer),
+        generator=pretrain_batch_generator(
+            train_W, train_A, word_tokenizer, batch_size=200, max_len=50),
         steps_per_epoch=100,
         epochs=100, verbose=2,
         validation_data=pretrain_batch_generator(
-            test_C, test_A, word_tokenizer),
+            test_W, test_A, word_tokenizer, batch_size=200, max_len=50),
         validation_steps=1,
         callbacks=[checkpoint_cb, simple_test_cb]
     )
+
 
 def main():
     aozora = "./data/sample_aozora.csv"
@@ -105,12 +111,13 @@ def main():
 
     # initialize
     encoder, generator, word_decoder, attention = get_generator(
-        vocab_size=len(char_tokenizer.word_index), emb_dim=512, hid_dim=1024, att_dim=1024, condition_num=21, max_word=50
+        vocab_size=len(word_tokenizer.word_index), emb_dim=512, hid_dim=1024, att_dim=1024, condition_num=21, max_word=50
     )
-    discriminator = get_discriminator()
 
+    discriminator = get_discriminator()
     # pretrain generator
-    pretrain_generator(generator, Ws[0], Ws[1], As[0], As[1], word_tokenizer, encoder, word_decoder, attention)
+    pretrain_generator(generator, Ws[0], Ws[1], As[0], As[1],
+                       word_tokenizer, encoder, word_decoder, attention)
 
 
 if __name__ == "__main__":
