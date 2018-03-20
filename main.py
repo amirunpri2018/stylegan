@@ -92,11 +92,11 @@ def pretrain_generator(generator, train_W, test_W, train_A, test_A, word_tokeniz
 
     generator.fit_generator(
         generator=pretrain_batch_generator(
-            train_W, train_A, word_tokenizer, batch_size=200, max_len=50),
+            train_W, train_A, word_tokenizer, batch_size=200, max_words=50),
         steps_per_epoch=100,
         epochs=100, verbose=2,
         validation_data=pretrain_batch_generator(
-            test_W, test_A, word_tokenizer, batch_size=200, max_len=50),
+            test_W, test_A, word_tokenizer, batch_size=200, max_words=50),
         validation_steps=1,
         callbacks=[checkpoint_cb, simple_test_cb]
     )

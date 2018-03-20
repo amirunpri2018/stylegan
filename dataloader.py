@@ -111,7 +111,7 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=T
 
 def pretrain_batch_generator(W, A, word_tokenizer, batch_size=200, words_len=50):
     for words, author in batch_generator(W, A, word_tokenizer, batch_size, words_len):
-        author = np.vstack([author] * words_len)
+        author = np.reshape(np.repeat(author, words_len, axis=0), (author.shape[0], words_len, author.shape[1]))
         train_target = np.hstack(
             (words[:, 1:], np.zeros((len(words), 1), dtype=np.int32)))
         yield [words, words, author], np.expand_dims(train_target, -1)
