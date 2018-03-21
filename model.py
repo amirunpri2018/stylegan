@@ -75,7 +75,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     )
 
     # Attention
-    encoded_seq_in = Input(shape=(words_len hid_dim*2))
+    encoded_seq_in = Input(shape=(words_len, hid_dim*2))
     decoded_seq_in = Input(shape=(1, hid_dim))
     condition_in = Input(shape=(1, condition_num))
 
