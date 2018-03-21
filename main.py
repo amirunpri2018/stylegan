@@ -12,6 +12,10 @@ from dataloader import load_dataset, pretrain_batch_generator, batch_generator
 from model import get_discriminator, get_generator
 
 
+MAX_WORDS = 100
+MAX_CHARS = 200
+
+
 def generate_sequence(encoder, word_decoder, attention_model, word_tokenizer,
                       texts=["私は猫です。", "僕は犬です。"], authors=["夏目漱石", "森鴎外"], max_len=50):
 
@@ -65,7 +69,7 @@ def generate_sequence(encoder, word_decoder, attention_model, word_tokenizer,
 
 
 class PretrainGeneratorCallBack(Callback):
-
+    
     def __init__(self, encoder, word_decoder, attention, word_tokenizer):
         self._encoder = encoder
         self._woed_decoder = word_decoder
@@ -76,8 +80,9 @@ class PretrainGeneratorCallBack(Callback):
         pass
 
     def on_epoch_end(self, epoch, logs=None):
-        generate_sequence(self._encoder, self._woed_decoder,
-                          self._attention, self._tokenizer)
+        results = generate_sequence(self._encoder, self._woed_decoder, self._attention, self._tokenizer)
+        for result in results:
+            print(result)
 
 
 def pretrain_generator(generator, train_W, test_W, train_A, test_A, word_tokenizer, encoder, word_decoder, attention):

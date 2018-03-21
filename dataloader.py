@@ -23,7 +23,16 @@ AUTHORS = ['吉川英治', '宮本百合子', '豊島与志雄', '海野十三',
 
 
 def load_tokenizer(lines):
-    tokenizer = Tokenizer(num_words=10000, oov_token="<UNK>")
+    """Tokenizerの作成
+    
+    Arguments:
+        lines {pandas.Series} -- Series of Text
+    
+    Returns:
+        Tokenizer -- fit済みtokenizer
+    """
+
+    tokenizer = Tokenizer(num_words=30000, oov_token="<UNK>")
     whole_texts = []
     for line in lines:
         whole_texts.append("<s> " + line.strip() + " </s>")
@@ -31,19 +40,34 @@ def load_tokenizer(lines):
     return tokenizer
 
 
-def load_dataset(aozora, wikipedia, words_length=50, chars_length=100, sample_size=100000):
+def load_dataset(datasets, words_len=100, chars_len=100, sample_size=500000):
+    """青空文庫とwikipediaのデータからデータセットを作成する
+    
+    Arguments:
+        datasets {list of str} -- データセットへのパス
+    
+    Keyword Arguments:
+        words_len {int} -- [description] (default: {50})
+        chars_len {int} -- [description] (default: {100})
+        sample_size {int} -- [description] (default: {100000})
+    
+    Returns:
+        CharsDataset, WordsDataset, POSDataset, tokenizers -- 構築したもののタプル
+    """
+
     # データセットの読み込み
-    aozora_df = pd.read_csv(aozora)
-    wikipedia_df = pd.read_csv(wikipedia)
-    df = pd.concat([aozora_df, wikipedia_df])
-    try:
-        df = df.sample(sample_size * 3)
-    except ValueError:
-        pass
+    dfs = []
+    for dataset in datasets:
+        dfs.append(pd.read_csv(dataset))
+    df = pd.concat(dfs)
 
     # Author Mask
     author_mask = df.author.apply(lambda x: x in AUTHORS)
     df = df[author_mask].copy()
+
+    # Char len Mask
+    char_mask = df.text.apply(lambda x: len(x) < chars_len)
+    df = df[char_mask].copy()
 
     # chars level
     df['chars'] = df.text.apply(lambda x: ' '.join(x))
@@ -59,9 +83,9 @@ def load_dataset(aozora, wikipedia, words_length=50, chars_length=100, sample_si
     word_tokenizer = load_tokenizer(df.wakati)
     pos_tokenizer = load_tokenizer(df.pos)
 
-    # 非効率かもしれないが、こちらでlengthによる絞り込みを行う。
-    words_len_mask = df.wakati.apply(lambda x: x.count(' ') <= words_length-3)  # <s>, </s>のぶん
-    char_len_mask = df.chars.apply(lambda x: x.count(' ') <= chars_length-3)
+    # words len mask
+    words_len_mask = df.wakati.apply(lambda x: x.count(' ') < words_length-1)  # <s>, </s>のぶん
+    char_len_mask = df.chars.apply(lambda x: x.count(' ') <= chars_length-1)
     df = df[words_len_mask & char_len_mask].copy()
     
     try:
@@ -70,7 +94,7 @@ def load_dataset(aozora, wikipedia, words_length=50, chars_length=100, sample_si
         pass
 
     train_C, test_C, train_W, test_W, train_P, test_P, train_A, test_A = train_test_split(
-        df.chars, df.wakati, df.pos, df.author, test_size=0.1, random_state=42
+        df.chars, df.wakati, df.pos, df.author, test_size=0.1
     )
 
     return (train_C, test_C), (train_W, test_W), (train_P, test_P), (train_A, test_A), (char_tokenizer, word_tokenizer, pos_tokenizer)
@@ -79,12 +103,19 @@ def load_dataset(aozora, wikipedia, words_length=50, chars_length=100, sample_si
 
 
 def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=True):
-    """generatorのpretraing用データローダー
-
+    """バッチの生成
+    
     Arguments:
-        T -- テキスト
-        A -- 著者
+        T {pd.Series} -- テキスト（分かち書き済み）
+        A {pd.Series} -- 著者
+        tokenizer {Tokenizer} -- tokenizer
+    
+    Keyword Arguments:
+        batch_size {int} -- バッチサイズ (default: {200})
+        max_len {int} -- 最長のトークン列長 (default: {100})
+        shuffle_flag {bool} -- 入力されたデータをシャッフルするかいなかのフラグ (default: {True})
     """
+
 
     data_size = T.shape[0]
     A = A.apply(lambda x: AUTHORS.index(x))
@@ -109,7 +140,19 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=T
             yield x, y
 
 
-def pretrain_batch_generator(W, A, word_tokenizer, batch_size=200, words_len=50):
+def pretrain_batch_generator(W, A, word_tokenizer, batch_size=200, words_len=100):
+    """Generatorの事前学習のためのバッチ生成
+    
+    Arguments:
+        W {pd.Series} -- 分かち書き済みの単語系列
+        A {pd.Series} -- 著者
+        word_tokenizer {Tokenizer} -- 単語レベルのtokenizer
+    
+    Keyword Arguments:
+        batch_size {int} -- バッチサイズ (default: {200})
+        words_len {int} -- 最長単語長 (default: {100})
+    """
+
     for words, author in batch_generator(W, A, word_tokenizer, batch_size, words_len):
         author = np.reshape(np.repeat(author, words_len, axis=0), (author.shape[0], words_len, author.shape[1]))
         train_target = np.hstack(
