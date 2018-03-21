@@ -154,7 +154,7 @@ def main():
 
     # initialize
     encoder, generator, word_decoder, attention = get_generator(
-        vocab_size=len(word_tokenizer.word_index)+1, emb_dim=128, hid_dim=128, att_dim=512,
+        vocab_size=len(word_tokenizer.word_index)+1, emb_dim=1024, hid_dim=1024, att_dim=256,
         condition_num=21, words_len=WORDS_LEN
     )
 
