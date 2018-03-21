@@ -38,10 +38,9 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
 
     # デコーダー
     decoder_inputs = Input(shape=(max_word,))
-    decoder_embedding = embedding(decoder_inputs)
     decoder_lstm = LSTM(hid_dim, return_sequences=True, return_state=True)
 
-    decoder_embedded = decoder_embedding(decoder_inputs)
+    decoder_embedded = embedding(decoder_inputs)
     decoded_seq, _, _ = decoder_lstm(decoder_embedded, initial_state=encoder_states)
 
     # Attention
