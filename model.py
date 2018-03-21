@@ -19,10 +19,12 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
         encoder
         word_decoder
     """
+    # Embeddeingは共通
+    embedding = Embedding(vocab_size, emb_dim, mask_zero=True)
 
     # Encoder
     encoder_inputs = Input(shape=(max_word,))
-    encoder_embedded = Embedding(vocab_size, emb_dim, mask_zero=True)(encoder_inputs)
+    encoder_embedded = embedding(encoder_inputs)
     encoded_seq, *encoder_states = Bidirectional(LSTM(hid_dim, return_sequences=True, return_state=True))(encoder_embedded)
     encoder_states_h = Concatenate()(encoder_states[:2])
     encoder_states_c = Concatenate()(encoder_states[2:])
@@ -36,7 +38,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
 
     # デコーダー
     decoder_inputs = Input(shape=(max_word,))
-    decoder_embedding = Embedding(vocab_size, emb_dim)
+    decoder_embedding = embedding(vocab_size, emb_dim)
     decoder_lstm = LSTM(hid_dim, return_sequences=True, return_state=True)
 
     decoder_embedded = decoder_embedding(decoder_inputs)
