@@ -95,17 +95,16 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
 
 
 def get_discriminator(
-        char_emb_dim=128, num_filters=64, filter_sizes=[2, 3, 4, 5], char_vocab_size=3000, chars_len=200, word_vocab_size=30000, word_emb_dim=128, word_hid_dim=128, words_len=100,
-        pos_vocab_size=100, pos_emb_dim=16, pos_hid_dim=128,
+        char_emb_dim=128, num_filters=64, filter_sizes=[2, 3, 4, 5], char_vocab_size=3000, chars_len=200,
+        pos_vocab_size=100, pos_emb_dim=16, pos_hid_dim=128, pos_len=100,
         condition_num=21):
     """複数の種類のDiscriminatorを組み合わせたDiscriminator。
     分類するラベルは、true ,falseである。
 
     - 文字レベル：Generatorの出力を文字レベルにした上でのCNN。
-    - 分かち書きレベル：Generatorの出力をそのまま利用してRNN。
     - 品詞レベル：Generatorの出力を結合し、MeCabで形態素解析を行い、品詞系列にしてRNN
 
-    以上の3つのレベルのDiscriminatorは最終的に結合され、2のクラスへの確率が出力され、Generatorに対する報酬になる。
+    以上の2つのレベルのDiscriminatorは最終的に結合され、2のクラスへの確率が出力され、Generatorに対する報酬になる。
     """
 
     # Character Level CNN
@@ -124,20 +123,8 @@ def get_discriminator(
         convs.append(x)
     char_cnn = Concatenate()(convs)
 
-    # wakati Level RNN
-    wakati_input = Input(shape=(words_len,))  # 最大入力単語数100
-    x = Embedding(word_vocab_size, word_emb_dim, mask_zero=True)(wakati_input)
-    x = Bidirectional(
-        LSTM(word_hid_dim, return_sequences=True, activation='relu'))(x)
-    x = Dropout(0.5)(x)
-    x = Bidirectional(
-        LSTM(word_hid_dim, return_sequences=True, activation='relu'))(x)
-    x = Dropout(0.5)(x)
-    _, *wakati_states = Bidirectional(LSTM(word_hid_dim, return_state=True))(x)
-    wakati_rnn = Concatenate()(wakati_states)
-
     # POS Level RNN
-    pos_input = Input(shape=(words_len,))  # 最大入力単語数
+    pos_input = Input(shape=(pos_len,))  # 最大入力単語数
     x = Embedding(pos_vocab_size, pos_emb_dim, mask_zero=True)(pos_input)
     x = Bidirectional(
         LSTM(pos_hid_dim, return_sequences=True, activation='relu'))(x)
@@ -150,14 +137,14 @@ def get_discriminator(
 
     # condition input and judge
     condition_input = Input(shape=(condition_num,))
-    x = Concatenate()([char_cnn, wakati_rnn, pos_rnn, condition_input])
+    x = Concatenate()([char_cnn, pos_rnn, condition_input])
     x = Dropout(0.5)(x)
     x = Dense(64, activation='relu')(x)
     x = Dropout(0.5)(x)
     output = Dense(1, activation='sigmoid')(x)
 
     discriminator = Model(
-        inputs=[char_input, wakati_input, pos_input, condition_input],
+        inputs=[char_input, pos_input, condition_input],
         outputs=[output]
     )
 

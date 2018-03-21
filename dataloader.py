@@ -24,10 +24,10 @@ AUTHORS = ['吉川英治', '宮本百合子', '豊島与志雄', '海野十三',
 
 def load_tokenizer(lines):
     """Tokenizerの作成
-    
+
     Arguments:
         lines {pandas.Series} -- Series of Text
-    
+
     Returns:
         Tokenizer -- fit済みtokenizer
     """
@@ -42,15 +42,15 @@ def load_tokenizer(lines):
 
 def load_dataset(datasets, words_len=100, chars_len=100, sample_size=500000):
     """青空文庫とwikipediaのデータからデータセットを作成する
-    
+
     Arguments:
         datasets {list of str} -- データセットへのパス
-    
+
     Keyword Arguments:
         words_len {int} -- [description] (default: {50})
         chars_len {int} -- [description] (default: {100})
         sample_size {int} -- [description] (default: {100000})
-    
+
     Returns:
         CharsDataset, WordsDataset, POSDataset, tokenizers -- 構築したもののタプル
     """
@@ -63,11 +63,11 @@ def load_dataset(datasets, words_len=100, chars_len=100, sample_size=500000):
 
     # Author Mask
     author_mask = df.author.apply(lambda x: x in AUTHORS)
-    df = df[author_mask].copy()
+    df = df[author_mask]
 
     # Char len Mask
     char_mask = df.text.apply(lambda x: len(x) < chars_len)
-    df = df[char_mask].copy()
+    df = df[char_mask]
 
     # chars level
     df['chars'] = df.text.apply(lambda x: ' '.join(x))
@@ -84,10 +84,11 @@ def load_dataset(datasets, words_len=100, chars_len=100, sample_size=500000):
     pos_tokenizer = load_tokenizer(df.pos)
 
     # words len mask
-    words_len_mask = df.wakati.apply(lambda x: x.count(' ') < words_len-1)  # <s>, </s>のぶん
+    words_len_mask = df.wakati.apply(
+        lambda x: x.count(' ') < words_len-1)  # <s>, </s>のぶん
     char_len_mask = df.chars.apply(lambda x: x.count(' ') <= chars_len-1)
     df = df[words_len_mask & char_len_mask].copy()
-    
+
     try:
         df = df.sample(sample_size)
     except ValueError:
@@ -100,22 +101,19 @@ def load_dataset(datasets, words_len=100, chars_len=100, sample_size=500000):
     return (train_C, test_C), (train_W, test_W), (train_P, test_P), (train_A, test_A), (char_tokenizer, word_tokenizer, pos_tokenizer)
 
 
-
-
 def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=True):
     """バッチの生成
-    
+
     Arguments:
         T {pd.Series} -- テキスト（分かち書き済み）
         A {pd.Series} -- 著者
         tokenizer {Tokenizer} -- tokenizer
-    
+
     Keyword Arguments:
         batch_size {int} -- バッチサイズ (default: {200})
         max_len {int} -- 最長のトークン列長 (default: {100})
         shuffle_flag {bool} -- 入力されたデータをシャッフルするかいなかのフラグ (default: {True})
     """
-
 
     data_size = T.shape[0]
     A = A.apply(lambda x: AUTHORS.index(x))
@@ -131,30 +129,70 @@ def batch_generator(T, A, tokenizer, batch_size=200, max_len=100, shuffle_flag=T
 
             whole_texts = []
             for line in x:
-                line = ' '.join(line)
                 whole_texts.append("<s> " + line.strip() + " </s>")
-
             x = tokenizer.texts_to_sequences(whole_texts)
             x = pad_sequences(x, padding='post', maxlen=max_len)
 
             yield x, y
 
 
-def pretrain_batch_generator(W, A, word_tokenizer, batch_size=200, words_len=100):
+def generator_pretrain_batch(W, A, word_tokenizer, batch_size=200, words_len=100):
     """Generatorの事前学習のためのバッチ生成
-    
+
     Arguments:
         W {pd.Series} -- 分かち書き済みの単語系列
         A {pd.Series} -- 著者
         word_tokenizer {Tokenizer} -- 単語レベルのtokenizer
-    
+
     Keyword Arguments:
         batch_size {int} -- バッチサイズ (default: {200})
         words_len {int} -- 最長単語長 (default: {100})
     """
 
     for words, author in batch_generator(W, A, word_tokenizer, batch_size, words_len):
-        author = np.reshape(np.repeat(author, words_len, axis=0), (author.shape[0], words_len, author.shape[1]))
+        author = np.reshape(np.repeat(author, words_len, axis=0),
+                            (author.shape[0], words_len, author.shape[1]))
         train_target = np.hstack(
             (words[:, 1:], np.zeros((len(words), 1), dtype=np.int32)))
         yield [words, words, author], np.expand_dims(train_target, -1)
+
+
+def discriminator_pretrain_batch(C, P, A, char_tokenizer, pos_tokenizer,
+                                 chars_len=200, pos_len=100, batch_size=200, shuffle_flag=True):
+    """Discriminatorの事前学習のためのバッチ生成
+    """
+
+    data_size = C.shape[0]
+    A = A.apply(lambda x: AUTHORS.index(x))
+    fake_A = np.random.choice(AUTHORS, data_size).apply(
+        lambda x: AUTHORS.index(x))
+
+    A = np_utils.to_categorical(A, num_classes=len(AUTHORS))
+    fake_A = np_utils.to_categorical(fake_A, num_classes=len(AUTHORS))
+
+    while True:
+        if shuffle_flag:
+            C, P, A = shuffle(C, P, A)  # fake_Aは固定
+
+        Y = (A == fake_A).all(axis=1).astype(float)
+
+        for i in range(data_size//batch_size):
+            c = C[i*batch_size: (i+1)*batch_size]
+            p = P[i*batch_size: (i+1)*batch_size]
+            a = A[i*batch_size: (i+1)*batch_size]
+            y = Y[i*batch_size: (i+1)*batch_size]
+
+            whole_chars = []
+            for line in c:
+                whole_chars.append("<s> " + line.strip() + " </s>")
+
+            whole_poss = []
+            for line in p:
+                whole_poss.append("<s> " + line.strip() + " </s>")
+
+            c = char_tokenizer.texts_to_sequences(whole_chars)
+            p = pos_tokenizer.texts_to_sequences(whole_poss)
+            c = pad_sequences(c, padding='post', maxlen=chars_len)
+            p = pad_sequences(p, padding='post', maxlen=pos_len)
+
+            yield [c, p, a], y
