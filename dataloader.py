@@ -84,8 +84,8 @@ def load_dataset(datasets, words_len=100, chars_len=100, sample_size=500000):
     pos_tokenizer = load_tokenizer(df.pos)
 
     # words len mask
-    words_len_mask = df.wakati.apply(lambda x: x.count(' ') < words_length-1)  # <s>, </s>のぶん
-    char_len_mask = df.chars.apply(lambda x: x.count(' ') <= chars_length-1)
+    words_len_mask = df.wakati.apply(lambda x: x.count(' ') < words_len-1)  # <s>, </s>のぶん
+    char_len_mask = df.chars.apply(lambda x: x.count(' ') <= chars_len-1)
     df = df[words_len_mask & char_len_mask].copy()
     
     try:
