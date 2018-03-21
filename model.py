@@ -7,7 +7,7 @@ from keras.layers import (LSTM, BatchNormalization, Bidirectional, Concatenate,
 from keras.models import Model
 
 
-def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condition_num=21, max_word=50):
+def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condition_num=21, words_len=100):
     """分かち書きのGenerator
 
     分かち書きを入力として、エンコーディングする。
@@ -23,7 +23,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     embedding = Embedding(vocab_size, emb_dim, mask_zero=True)
 
     # Encoder
-    encoder_inputs = Input(shape=(max_word,))
+    encoder_inputs = Input(shape=(words_len))
     encoder_embedded = embedding(encoder_inputs)
     encoded_seq, *encoder_states = Bidirectional(LSTM(hid_dim, return_sequences=True, return_state=True))(encoder_embedded)
     encoder_states_h = Concatenate()(encoder_states[:2])
@@ -37,14 +37,14 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     encoder = Model(encoder_inputs, [encoded_seq] + encoder_states)
 
     # デコーダー
-    decoder_inputs = Input(shape=(max_word,))
+    decoder_inputs = Input(shape=(words_len))
     decoder_lstm = LSTM(hid_dim, return_sequences=True, return_state=True)
 
     decoder_embedded = embedding(decoder_inputs)
     decoded_seq, _, _ = decoder_lstm(decoder_embedded, initial_state=encoder_states)
 
     # Attention
-    condition_input = Input(shape=(max_word, condition_num))
+    condition_input = Input(shape=(words_len condition_num))
     score_dense = Dense(hid_dim*2,  kernel_initializer='he_normal')
     attention_dense = Dense(att_dim, activation='tanh', kernel_initializer='he_normal')
     output_dense = Dense(vocab_size, activation='softmax',  kernel_initializer='he_normal')
@@ -75,7 +75,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     )
 
     # Attention
-    encoded_seq_in = Input(shape=(max_word, hid_dim*2))
+    encoded_seq_in = Input(shape=(words_len hid_dim*2))
     decoded_seq_in = Input(shape=(1, hid_dim))
     condition_in = Input(shape=(1, condition_num))
 
@@ -95,7 +95,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
 
 
 def get_discriminator(
-        char_emb_dim=128, num_filters=64, filter_sizes=[2, 3, 4, 5], char_vocab_size=3000, max_chars=200, word_vocab_size=30000, word_emb_dim=128, word_hid_dim=128, max_words=100,
+        char_emb_dim=128, num_filters=64, filter_sizes=[2, 3, 4, 5], char_vocab_size=3000, chars_len=200, word_vocab_size=30000, word_emb_dim=128, word_hid_dim=128, words_len=100,
         pos_vocab_size=100, pos_emb_dim=16, pos_hid_dim=128,
         condition_num=21):
     """複数の種類のDiscriminatorを組み合わせたDiscriminator。
@@ -109,9 +109,9 @@ def get_discriminator(
     """
 
     # Character Level CNN
-    char_input = Input(shape=(max_chars,))
+    char_input = Input(shape=(chars_len,))
     char_emb = Embedding(char_vocab_size, char_emb_dim)(char_input)
-    char_emb = Reshape((max_chars, char_emb_dim, 1))(char_emb)
+    char_emb = Reshape((chars_len, char_emb_dim, 1))(char_emb)
     convs = []
     for filter_size in filter_sizes:
         x = Convolution2D(
@@ -119,13 +119,13 @@ def get_discriminator(
             kernel_regularizer=regularizers.l2(0.001),
             activation="relu")(char_emb)
         x = Dropout(0.5)(x)
-        x = MaxPooling2D(pool_size=(max_chars - filter_size + 1, 1))(x)
+        x = MaxPooling2D(pool_size=(chars_len - filter_size + 1, 1))(x)
         x = Reshape((num_filters,))(x)
         convs.append(x)
     char_cnn = Concatenate()(convs)
 
     # wakati Level RNN
-    wakati_input = Input(shape=(max_words,))  # 最大入力単語数100
+    wakati_input = Input(shape=(words_len,))  # 最大入力単語数100
     x = Embedding(word_vocab_size, word_emb_dim, mask_zero=True)(wakati_input)
     x = Bidirectional(
         LSTM(word_hid_dim, return_sequences=True, activation='relu'))(x)
@@ -137,7 +137,7 @@ def get_discriminator(
     wakati_rnn = Concatenate()(wakati_states)
 
     # POS Level RNN
-    pos_input = Input(shape=(max_words,))  # 最大入力単語数
+    pos_input = Input(shape=(words_len,))  # 最大入力単語数
     x = Embedding(pos_vocab_size, pos_emb_dim, mask_zero=True)(pos_input)
     x = Bidirectional(
         LSTM(pos_hid_dim, return_sequences=True, activation='relu'))(x)
