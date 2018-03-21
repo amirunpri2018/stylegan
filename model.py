@@ -23,7 +23,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     embedding = Embedding(vocab_size, emb_dim, mask_zero=True)
 
     # Encoder
-    encoder_inputs = Input(shape=(words_len))
+    encoder_inputs = Input(shape=(words_len,))
     encoder_embedded = embedding(encoder_inputs)
     encoded_seq, *encoder_states = Bidirectional(LSTM(hid_dim, return_sequences=True, return_state=True))(encoder_embedded)
     encoder_states_h = Concatenate()(encoder_states[:2])
@@ -37,7 +37,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     encoder = Model(encoder_inputs, [encoded_seq] + encoder_states)
 
     # デコーダー
-    decoder_inputs = Input(shape=(words_len))
+    decoder_inputs = Input(shape=(words_len,))
     decoder_lstm = LSTM(hid_dim, return_sequences=True, return_state=True)
 
     decoder_embedded = embedding(decoder_inputs)
