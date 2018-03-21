@@ -10,8 +10,8 @@ class MyTokenizer:
         self._num_words = num_words
         self._oov_token = oov_token
         self._counter = Counter()
-        self._word_index = defaultdict(lambda: -1)
-        self._index_word = {}
+        self._word_index = None
+        self._index_word = None
 
     def fit_on_texts(self, texts):
         # word count
@@ -22,13 +22,19 @@ class MyTokenizer:
         # top n words
         top_words = self._counter.most_common(self._num_words)
         
+        word_index = {}
+        index_word = {}
         for i, (word, _) in enumerate(top_words):
-            self._word_index[word] = i + 1
-            self._index_word[i+1] = word
+            word_index[word] = i + 1
+            index_word[i+1] = word
 
         # OOV用
-        self._word_index[self._oov_token] = -1
-        self._index_word[-1] = self._oov_token
+        word_index[self._oov_token] = i + 1
+        index_word[i+1] = self._oov_token
+
+        # 確定
+        self._word_index = defaultdict(lambda: i+1, word_index)
+        self._index_word = index_word
 
         
     def texts_to_sequences(self, texts):
