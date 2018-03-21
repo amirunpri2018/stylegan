@@ -66,7 +66,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     word_decoder_inputs = Input(shape=(1,))
     word_decoder_states_inputs = [Input(shape=(hid_dim,)), Input(shape=(hid_dim,))]
 
-    word_decoder_embeded = decoder_embedding(word_decoder_inputs)
+    word_decoder_embeded = embedding(word_decoder_inputs)
     word_decoded_seq, *word_decoder_states = decoder_lstm(word_decoder_embeded, initial_state=word_decoder_states_inputs)
 
     word_decoder = Model(
