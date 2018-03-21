@@ -32,7 +32,7 @@ def load_tokenizer(lines):
         Tokenizer -- fit済みtokenizer
     """
 
-    tokenizer = Tokenizer(num_words=30000, oov_token="<UNK>")
+    tokenizer = Tokenizer(num_words=10000, oov_token="<UNK>")
     whole_texts = []
     for line in lines:
         whole_texts.append("<s> " + line.strip() + " </s>")
