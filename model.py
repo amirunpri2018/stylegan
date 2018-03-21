@@ -44,7 +44,7 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     decoded_seq, _, _ = decoder_lstm(decoder_embedded, initial_state=encoder_states)
 
     # Attention
-    condition_input = Input(shape=(words_len condition_num))
+    condition_input = Input(shape=(words_len, condition_num))
     score_dense = Dense(hid_dim*2,  kernel_initializer='he_normal')
     attention_dense = Dense(att_dim, activation='tanh', kernel_initializer='he_normal')
     output_dense = Dense(vocab_size, activation='softmax',  kernel_initializer='he_normal')
