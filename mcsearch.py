@@ -102,7 +102,7 @@ class MonteCarloSearchNode:
                 pos_input = ['<s>'] + pos_input.strip() + ['</s>']
 
                 c = self.char_tokenizer.texts_to_sequences([char_input])
-                p = self.pos_tokenizer.texts_to_sequences([])
+                p = self.pos_tokenizer.texts_to_sequences([pos_input])
                 c = pad_sequences(c, padding='post', maxlen=200)
                 p = pad_sequences(p, padding='post', maxlen=100)
 
