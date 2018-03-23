@@ -12,7 +12,7 @@ class MonteCarloSearchNode:
 
     def __init__(self, parent_node, cond_tokens, token,
                  encoded_seq, y, word_decoder, attention_model, discriminator,
-                 word_tokenizer, char_tokenizer, pos_tokenizer, states_value, sample_size=10, sampled_n=1):
+                 word_tokenizer, char_tokenizer, pos_tokenizer, states_value, sample_size=5, sampled_n=1, search_space=200):
 
         self.parent = parent_node  # 親のノード rootノードはNone
 
@@ -43,6 +43,8 @@ class MonteCarloSearchNode:
         else:
             self.is_end = False
 
+        self.search_space = search_space
+
     @property
     def _is_root(self):
         return self.parent is None
@@ -71,7 +73,7 @@ class MonteCarloSearchNode:
                 parent_node=self, cond_tokens=self.cond_tokens+[sampled_token], token=sampled_token,
                 encoded_seq=self.encoded_seq, y=self.y, word_decoder=self.word_decoder,
                 attention_model=self.attention_model, discriminator=self.discriminator, word_tokenizer=self.word_tokenizer,
-                char_tokenizer=self.char_tokenizer, pos_tokenizer=self.pos_tokenizer, states_value=states_value, sampled_n=sampled_n)
+                char_tokenizer=self.char_tokenizer, pos_tokenizer=self.pos_tokenizer, states_value=states_value, sample_size=self.sample_size, sampled_n=sampled_n)
             )  # 子ノードの追加
 
         # search for children
