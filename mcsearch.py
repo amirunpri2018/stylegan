@@ -99,7 +99,7 @@ class MonteCarloSearchNode:
                 chasen = mecab.parse(text).strip()
                 pos_input = [word.split('\t')[3]
                              for word in chasen.split('\n')[:-1]]
-                pos_input = ['<s>'] + pos_input.strip() + ['</s>']
+                pos_input = ['<s>'] + pos_input + ['</s>']
 
                 c = self.char_tokenizer.texts_to_sequences([char_input])
                 p = self.pos_tokenizer.texts_to_sequences([pos_input])
