@@ -54,9 +54,9 @@ class MonteCarloSearchNode:
             return
 
         # Decode
-        decoded_seq, * \
-            states_value = self.word_decoder.predict(
-                [self.token] + self.states_value)
+        decoded_seq, *states_value = self.word_decoder.predict(
+            [np.array([self.token])] + self.states_value
+        )
         # Attention
         output_tokens, _ = self.attention_model.predict(
             [self.encoded_seq, decoded_seq, np.array([self.y])]  # 条件がここにつく
