@@ -4,6 +4,7 @@ from collections import Counter
 
 import MeCab
 import numpy as np
+from keras.preprocessing.sequence import pad_sequences
 
 mecab = MeCab.Tagger("-O chasen")
 
@@ -90,18 +91,24 @@ class MonteCarloSearchNode:
             return self.qvalue_
         else:
             if self.is_end:
-                words = self.word_tokenizer.sequences_to_texts([self.cond_tokens])[
-                    0]
-                text = ''.join(words)
+                words = self.word_tokenizer.sequences_to_texts(
+                    [self.cond_tokens], return_words=True)[0]
+                text = ''.join(words[1:-1])
 
-                char_input = ' '.join(text)
+                char_input = '<s> ' + ' '.join(text) + ' </s>'
                 chasen = mecab.parse(text).strip()
                 pos_input = [word.split('\t')[3]
                              for word in chasen.split('\n')[:-1]]
-                condition_input = [self.y]
+                pos_input = ['<s>'] + pos_input.strip() + ['</s>']
 
-                self.qvalue_ = self.discriminator(
-                    [char_input, pos_input, condition_input])  # discriminatorによる評価
+                c = self.char_tokenizer.texts_to_sequences([char_input])
+                p = self.pos_tokenizer.texts_to_sequences([])
+                c = pad_sequences(c, padding='post', maxlen=200)
+                p = pad_sequences(p, padding='post', maxlen=100)
+
+                a = np.array([self.y])
+
+                self.qvalue_ = self.discriminator([c, p, a])  # discriminatorによる評価
             else:
                 self.qvalue_ = np.sum(
                     [node.sampled_n * node.qvalue() for node in self.children]) / self.sample_size
