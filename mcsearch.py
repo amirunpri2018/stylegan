@@ -76,7 +76,7 @@ class MonteCarloSearchNode:
 
         # search for children
         for node in self.children:
-            node.serach()
+            node.search()
 
     def qvalue(self):
         """Q値
