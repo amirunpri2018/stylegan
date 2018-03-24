@@ -135,3 +135,30 @@ def pretrain_discriminator(discriminator, train_W, test_W, train_A, test_A,
         validation_steps=1,
         callbacks=[checkpoint_cb]
     )
+
+def train_discriminator(discriminator, train_W, test_W, train_A, test_A,
+                           word_tokenizer, char_tokenizer, pos_tokenizer,
+                           encoder, word_decoder, attention_model):
+    """Discriminatorの事前学習
+    """
+    discriminator.compile(
+        optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+    checkpoint_cb = ModelCheckpoint(
+        "models/discriminator-weights.{epoch:02d}.hdf5", period=1)
+
+    discriminator.fit_generator(
+        generator=discriminator_pretrain_batch(
+            train_W, train_A, word_tokenizer, char_tokenizer, pos_tokenizer,
+            encoder, word_decoder, attention_model,
+            chars_len=CHARS_LEN, pos_len=WORDS_LEN, batch_size=200, shuffle_flag=True),
+        steps_per_epoch=10,
+        epochs=1,
+        verbose=2,
+        validation_data=discriminator_pretrain_batch(
+            test_W, test_A, word_tokenizer, char_tokenizer, pos_tokenizer,
+            encoder, word_decoder, attention_model,
+            chars_len=CHARS_LEN, pos_len=WORDS_LEN, batch_size=200, shuffle_flag=True),
+        validation_steps=1,
+        callbacks=[checkpoint_cb]
+    )
