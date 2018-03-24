@@ -36,6 +36,7 @@ def list_to_batch(data):
             X_list[i].append(x)
         Y.append(y)
     X_list = [np.vstack(x) for x in X_list]
+    Y = np.vstack(Y)
     return X_list, Y
 
 def random_unkowned_text(wakati, rate=0.05):
