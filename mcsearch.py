@@ -98,8 +98,7 @@ class MonteCarloSearchNode:
                 words = self.word_tokenizer.sequences_to_texts(
                     [self.cond_tokens], return_words=True)[0]
                 text = ''.join(words[1:-1])
-                print(text)
-
+            
                 char_input = '<s> ' + ' '.join(text) + ' </s>'
                 chasen = mecab.parse(text).strip()
                 pos_input = [word.split('\t')[3]
@@ -121,5 +120,5 @@ class MonteCarloSearchNode:
 
 
     def get_reward(self):
-        return [np.array([self.token])] + self.states_value + [self.encoded_seq, np.array([self.y])], self.qvalue()
+        return [np.array([self.token])] + self.states_value + [self.encoded_seq, np.array([self.y])], np.log(self.qvalue() 
 
