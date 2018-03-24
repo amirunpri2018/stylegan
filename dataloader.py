@@ -28,6 +28,16 @@ AUTHORS = ['吉川英治', '宮本百合子', '豊島与志雄', '海野十三',
 mecab = MeCab.Tagger('-O chasen')
 
 
+def list_to_batch(data):
+    X_list = [[] for _ in range(len(data[0][0]))]
+    Y = []
+    for x_list, y in data:
+        for i, x in enumerate(x_list):
+            X_list[i].append(x)
+        Y.append(y)
+    X_list = [np.vstack(x) for x in X_list]
+    return X_list, Y
+
 def random_unkowned_text(wakati, rate=0.05):
     words = wakati.split(' ')
     mask = np.random.choice([True, False], size=len(words), p=[0.05, 0.95])
@@ -318,6 +328,8 @@ def generate_generator_training_data(W, A, word_tokenizer, char_tokenizer, pos_t
                                      encoder, word_decoder, attention_model, discriminator):
     while True:
         W, A = shuffle(W, A)
+
+        data = []
         for w, a in zip(W, A):
             y = np_utils.to_categorical(
                 [AUTHORS.index(a)], num_classes=len(AUTHORS))
@@ -357,4 +369,8 @@ def generate_generator_training_data(W, A, word_tokenizer, char_tokenizer, pos_t
             mctree.search()
 
             for x, y in itertools.islice(generate_reward_data(mctree), 100):
-                yield x, y
+                data.append((x, y))
+                if len(data) == 200:  # batch size
+                    yield list_to_batch(data)
+                    data = []
+                    
