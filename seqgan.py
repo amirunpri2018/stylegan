@@ -101,7 +101,7 @@ def pretrain_generator(generator, train_W, test_W, train_A, test_A, word_tokeniz
         generator=generator_pretrain_batch(
             train_W, train_A, word_tokenizer, batch_size=200, words_len=WORDS_LEN),
         steps_per_epoch=100,
-        epochs=100, verbose=2,
+        epochs=50, verbose=2,
         validation_data=generator_pretrain_batch(
             test_W, test_A, word_tokenizer, batch_size=200, words_len=WORDS_LEN),
         validation_steps=1,
@@ -118,15 +118,16 @@ def pretrain_discriminator(discriminator, train_W, test_W, train_A, test_A,
         optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
     checkpoint_cb = ModelCheckpoint(
-        "models/discriminator-weights.{epoch:02d}.hdf5", period=10)
+        "models/discriminator-weights.{epoch:02d}.hdf5", period=1)
 
     discriminator.fit_generator(
         generator=discriminator_pretrain_batch(
             train_W, train_A, word_tokenizer, char_tokenizer, pos_tokenizer,
             encoder, word_decoder, attention_model,
             chars_len=CHARS_LEN, pos_len=WORDS_LEN, batch_size=200, shuffle_flag=True),
-        steps_per_epoch=100,
-        epochs=100, verbose=2,
+        steps_per_epoch=10,
+        epochs=10,
+        verbose=2,
         validation_data=discriminator_pretrain_batch(
             test_W, test_A, word_tokenizer, char_tokenizer, pos_tokenizer,
             encoder, word_decoder, attention_model,
