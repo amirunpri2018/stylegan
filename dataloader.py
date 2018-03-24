@@ -323,20 +323,38 @@ def generate_generator_training_data(W, A, word_tokenizer, char_tokenizer, pos_t
                 [AUTHORS.index(a)], num_classes=len(AUTHORS))
 
             wakatis = ["<s> " + ' '.join(w) + " </s>"]
+
             inputs = word_tokenizer.texts_to_sequences(wakatis)
             inputs = pad_sequences(inputs, maxlen=50)
+
+            # 入力文字列から初期状態を求める
             encoded_seq, *states_value = encoder.predict(inputs)
+
+            start_depth = np.random.randint(0, min(len(wakatis) - 3, 50 - 3))
+            target_seq = np.array([word_tokenizer.word_index['<s>']])
+            for _ in range(start_depth):
+                decoded_seq, *states_value = word_decoder.predict(
+                    [target_seq] + states_value
+                )
+                output_tokens, _ = attention_model.predict(
+                    [encoded_seq, decoded_seq, np.array([y])])  # condition
+                sampled_token_index = [np.argmax(output_tokens[0, -1, :])]
+
+                if sampled_token_index == word_tokenizer.word_index['</s>']:
+                    break
+                target_seq = np.array(sampled_token_index)
+
 
             mctree = MonteCarloSearchNode(
                 None, [word_tokenizer.word_index['<s>']],
                 word_tokenizer.word_index['<s>'],
                 encoded_seq, y, word_decoder, attention_model, discriminator,
                 word_tokenizer, char_tokenizer, pos_tokenizer,
-                states_value, sample_size=10, sampled_n=1
+                states_value, sample_size=10, sampled_n=1,
+                remain_depth=3
             )
 
-            mctree.search()  # 時間かかるときはどうしよう。。。
+            mctree.search()
 
             for x, y in generate_reward_data(mctree)[:100]:  # 1文あたり100個まで
                 yield x, y
-                
