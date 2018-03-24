@@ -128,4 +128,4 @@ class MonteCarloSearchNode:
         inputs += [self.parent.encoded_seq, self.parent.decoded_seq]
         inputs += [np.array([self.y]), np_utils.to_categorical([self.token], num_classes=10002)]
 
-        return inputs, self.qvalue_
+        return inputs, self.qvalue()
