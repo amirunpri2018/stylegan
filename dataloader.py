@@ -330,7 +330,7 @@ def generate_generator_training_data(W, A, word_tokenizer, char_tokenizer, pos_t
             # 入力文字列から初期状態を求める
             encoded_seq, *states_value = encoder.predict(inputs)
 
-            start_depth = np.random.randint(0, min(len(wakatis) - 3, 50 - 3))
+            start_depth = np.random.randint(0, max(min(len(wakatis) - 3, 50 - 3), 1))
             target_seq = np.array([word_tokenizer.word_index['<s>']])
             for _ in range(start_depth):
                 decoded_seq, *states_value = word_decoder.predict(
