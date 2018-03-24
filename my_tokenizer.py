@@ -33,7 +33,7 @@ class MyTokenizer:
         index_word[i+1] = self._oov_token
 
         # 確定
-        self._word_index = defaultdict(lambda: i+1, word_index)
+        self._word_index = word_index
         self._index_word = index_word
 
         
@@ -42,7 +42,10 @@ class MyTokenizer:
         for text in texts:
             sequence = []
             for word in text.split(' '):
-                sequence.append(self._word_index[word])
+                try:
+                    sequence.append(self._word_index[word])
+                except KeyError:
+                    sequence.append(self._word_index[self._oov_token])
             sequences.append(sequence)
         return sequences
 
