@@ -17,7 +17,7 @@ CHARS_LEN = 100
 
 
 def generate_sequence(encoder, word_decoder, attention_model, word_tokenizer,
-                      texts=["私は猫です。", "僕は犬です。"], authors=["夏目漱石", "森鴎外"]):
+                      texts=["私 は 猫 です 。", "僕 は 犬 です 。"], authors=["夏目漱石", "森鴎外"]):
 
     bos_eos = word_tokenizer.texts_to_sequences(["<s>", "</s>"])
 
