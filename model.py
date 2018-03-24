@@ -145,7 +145,7 @@ def get_discriminator(
 
     discriminator = Model(
         inputs=[char_input, pos_input, condition_input],
-        outputs=output
+        outputs=[output]
     )
 
     return discriminator

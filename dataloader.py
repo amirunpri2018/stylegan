@@ -239,7 +239,7 @@ def discriminator_pretrain_batch(W, A, word_tokenizer, char_tokenizer, pos_token
             a = batch_author.apply(lambda x: AUTHORS.index(x))
             a = np_utils.to_categorical(a, num_classes=len(AUTHORS))
 
-            y = np.array(batch_y)
+            y = np.array(batch_y).astype(float)
 
             yield [c, p, a], y
 
