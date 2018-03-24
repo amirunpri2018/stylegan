@@ -98,21 +98,22 @@ class MonteCarloSearchNode:
                 words = self.word_tokenizer.sequences_to_texts(
                     [self.cond_tokens], return_words=True)[0]
                 text = ''.join(words[1:-1])
+                print(text)
 
                 char_input = '<s> ' + ' '.join(text) + ' </s>'
                 chasen = mecab.parse(text).strip()
                 pos_input = [word.split('\t')[3]
                              for word in chasen.split('\n')[:-1]]
-                pos_input = ['<s>'] + pos_input + ['</s>']
+                pos_input = ' '.join(['<s>'] + pos_input + ['</s>'])
 
                 c = self.char_tokenizer.texts_to_sequences([char_input])
                 p = self.pos_tokenizer.texts_to_sequences([pos_input])
-                c = pad_sequences(c, padding='post', maxlen=200)
-                p = pad_sequences(p, padding='post', maxlen=100)
+                c = pad_sequences(c, padding='post', maxlen=100)
+                p = pad_sequences(p, padding='post', maxlen=50)
 
-                a = np.array([self.y])
+                a = np.array(self.y)
 
-                self.qvalue_ = self.discriminator([c, p, a])  # discriminatorによる評価
+                self.qvalue_ = self.discriminator.predict([c, p, a])  # discriminatorによる評価
             else:
                 self.qvalue_ = np.sum(
                     [node.sampled_n * node.qvalue() for node in self.children]) / self.sample_size
