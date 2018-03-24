@@ -351,7 +351,7 @@ def generate_generator_training_data(W, A, word_tokenizer, char_tokenizer, pos_t
                 encoded_seq, y, word_decoder, attention_model, discriminator,
                 word_tokenizer, char_tokenizer, pos_tokenizer,
                 states_value, sample_size=10, sampled_n=1,
-                remain_depth=3
+                remain_depth=2
             )
 
             mctree.search()
