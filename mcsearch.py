@@ -118,3 +118,8 @@ class MonteCarloSearchNode:
                 self.qvalue_ = np.sum(
                     [node.sampled_n * node.qvalue() for node in self.children]) / self.sample_size
             return self.qvalue_
+
+
+    def get_reward(self):
+        return [np.array([self.token])] + self.states_value + [self.encoded_seq, np.array([self.y])], self.qvalue()
+
