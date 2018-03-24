@@ -115,8 +115,8 @@ class MonteCarloSearchNode:
 
                 a = np.array(self.y)
 
-                self.qvalue_ = self.discriminator.predict(
-                    [c, p, a])  # discriminatorによる評価
+                self.qvalue_ = np.sum(self.discriminator.predict(
+                    [c, p, a]))  # discriminatorによる評価
             else:
                 self.qvalue_ = np.sum(
                     [node.sampled_n * node.qvalue() for node in self.children]) / self.sample_size
