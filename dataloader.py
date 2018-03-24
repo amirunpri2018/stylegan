@@ -7,11 +7,13 @@ import MeCab
 import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
-#from keras.preprocessing.text import Tokenizer
+# from keras.preprocessing.text import Tokenizer
 from my_tokenizer import MyTokenizer as Tokenizer
 from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
+
+import random
 
 logger = getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -20,6 +22,15 @@ AUTHORS = ['吉川英治', '宮本百合子', '豊島与志雄', '海野十三',
            '森鴎外', '夏目漱石', '岸田国士', '中里介山', '泉鏡花', '太宰治', '国枝史郎',
            '夢野久作', '島崎藤村', '芥川龍之介', '牧野信一', '三好十郎', '林不忘', '戸坂潤',
            'wikipedia']
+
+mecab = MeCab.Tagger('-O chasen')
+
+
+def random_unkowned_text(wakati, rate=0.05):
+    words = wakati.split(' ')
+    mask = np.random.choice([True, False], size=len(words), p=[0.05, 0.95])
+    text = ''.join([w if m else '<UNK>' for (w, m) in zip(words, mask)])
+    return text
 
 
 def load_tokenizer(lines):
@@ -157,42 +168,134 @@ def generator_pretrain_batch(W, A, word_tokenizer, batch_size=200, words_len=100
         yield [words, words, author], np.expand_dims(train_target, -1)
 
 
-def discriminator_pretrain_batch(C, P, A, char_tokenizer, pos_tokenizer,
-                                 chars_len=200, pos_len=100, batch_size=200, shuffle_flag=True):
+def text_to_pos(text):
+    chasen = mecab.parse(text).strip()
+    pos = ' '.join([word.split('\t')[3] for word in chasen.split('\n')[:-1]])
+    return pos
+
+
+def discriminator_pretrain_batch(W, A, word_tokenizer, char_tokenizer, pos_tokenizer,
+                                 encoder, word_decoder, attention_model,
+                                 chars_len=100, pos_len=50, batch_size=200, shuffle_flag=True):
     """Discriminatorの事前学習のためのバッチ生成
     """
 
-    data_size = C.shape[0]
-    A = A.apply(lambda x: AUTHORS.index(x))
-    fake_A = np.random.choice(AUTHORS, data_size).apply(
-        lambda x: AUTHORS.index(x))
-
-    A = np_utils.to_categorical(A, num_classes=len(AUTHORS))
-    fake_A = np_utils.to_categorical(fake_A, num_classes=len(AUTHORS))
+    data_size = W.shape[0]
 
     while True:
         if shuffle_flag:
-            C, P, A = shuffle(C, P, A)  # fake_Aは固定
-
-        Y = (A == fake_A).all(axis=1).astype(float)
+            W, A = shuffle(W, A)
 
         for i in range(data_size//batch_size):
-            c = C[i*batch_size: (i+1)*batch_size]
-            p = P[i*batch_size: (i+1)*batch_size]
+
+            true_fake_mask = (np.random.random(size=batch_size) > 0.5)
+
+            w = W[i*batch_size: (i+1)*batch_size]  # wakati
             a = A[i*batch_size: (i+1)*batch_size]
-            y = Y[i*batch_size: (i+1)*batch_size]
+
+            batch_text = []
+            batch_y = []
+
+            # generate nagative sample
+            fake_authors = np.random.choice(AUTHORS, size=batch_size - true_fake_mask.sum()).tolist()
+            fake_wakati_list = generate_fake_text(
+                encoder, word_decoder, attention_model, word_tokenizer,
+                w[~true_fake_mask],
+                pd.Series(fake_authors)
+            )
+
+            for fake_wakati in fake_wakati_list:
+                fake_text = ''.join(fake_wakati)
+                batch_text.append(fake_text)
+                batch_y.append(0)
+
+            # calc unk rate
+            words_num = 0
+            unk_num = 0
+            for line in fake_wakati_list:
+                words_num += len(line)
+                unk_num += line.count('<UNK>')
+            unk_rate = unk_num / words_num
+
+            batch_author = pd.Series(fake_authors + a[true_fake_mask].tolist())
+            for wakati in w[true_fake_mask]:
+                true_text = random_unkowned_text(wakati, unk_rate)
+                batch_text.append(true_text)
+                batch_y.append(1)
 
             whole_chars = []
-            for line in c:
-                whole_chars.append("<s> " + line.strip() + " </s>")
-
             whole_poss = []
-            for line in p:
-                whole_poss.append("<s> " + line.strip() + " </s>")
+            for text in batch_text:
+                chars = ' '.join(text)
+                whole_chars.append("<s> " + chars.strip() + " </s>")
+                pos = text_to_pos(text)
+                whole_poss.append("<s> " + pos.strip() + " </s>")
 
             c = char_tokenizer.texts_to_sequences(whole_chars)
             p = pos_tokenizer.texts_to_sequences(whole_poss)
             c = pad_sequences(c, padding='post', maxlen=chars_len)
             p = pad_sequences(p, padding='post', maxlen=pos_len)
 
+            a = batch_author.apply(lambda x: AUTHORS.index(x))
+            a = np_utils.to_categorical(a, num_classes=len(AUTHORS))
+
+            y = np.array(batch_y)
+
             yield [c, p, a], y
+
+
+def generate_fake_text(encoder, word_decoder, attention_model, word_tokenizer, W, A):
+
+    bos_eos = word_tokenizer.texts_to_sequences(["<s>", "</s>"])
+
+    A = A.apply(lambda x: AUTHORS.index(x))
+    A = np_utils.to_categorical(A, num_classes=len(AUTHORS))
+
+    whole_texts = []
+    for wakati in W:
+        whole_texts.append("<s> " + wakati.strip() + " </s>")
+    X = word_tokenizer.texts_to_sequences(whole_texts)
+    X = pad_sequences(X, padding='post', maxlen=50)
+
+    sequences = []
+
+    for x, y in zip(X, A):
+        x = np.reshape(x, (1, -1))
+        y = np.reshape(y, (1, -1))
+
+        target_seq = np.array(bos_eos[0])
+        output_seq = bos_eos[0][:]
+        attention_seq = np.empty((0, 50))
+        prev_token_index = bos_eos[0][:]  # 1つ前のトークン
+
+        encoded_seq, *states_value = encoder.predict(x)
+
+        while True:
+            decoded_seq, * \
+                states_value = word_decoder.predict(
+                    [target_seq] + states_value)
+            output_tokens, attention = attention_model.predict(
+                [encoded_seq, decoded_seq, np.array([y])])  # condition
+            sampled_token_index = [np.argmax(output_tokens[0, -1, :])]
+
+            if prev_token_index == sampled_token_index:
+                break
+
+            output_seq += sampled_token_index
+            attention_seq = np.append(attention_seq, attention[0], axis=0)
+
+            if (sampled_token_index == bos_eos[1] or len(output_seq) > 50):
+                break
+
+            target_seq = np.array(sampled_token_index)
+
+        sequences.append(output_seq)
+
+    wakati_list = word_tokenizer.sequences_to_texts(
+        sequences, return_words=True)
+
+    results = []
+    for wakati in wakati_list:
+        results.append(wakati[1:-1])
+
+    return results

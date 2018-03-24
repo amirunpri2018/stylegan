@@ -12,8 +12,8 @@ from dataloader import load_dataset, batch_generator, generator_pretrain_batch, 
 from model import get_discriminator, get_generator
 
 
-WORDS_LEN = 100
-CHARS_LEN = 200
+WORDS_LEN = 50
+CHARS_LEN = 100
 
 
 def generate_sequence(encoder, word_decoder, attention_model, word_tokenizer,
@@ -109,20 +109,10 @@ def pretrain_generator(generator, train_W, test_W, train_A, test_A, word_tokeniz
     )
 
 
-def pretrain_discriminator(discriminator, train_C, test_C, train_P, test_P,
-                           train_A, test_A, char_tokenizer, pos_tokenizer):
+def pretrain_discriminator(discriminator, train_W, test_W, train_A, test_A,
+                           word_tokenizer, char_tokenizer, pos_tokenizer,
+                           encoder, word_decoder, attention_model):
     """Discriminatorの事前学習
-
-    Arguments:
-        discriminator {[type]} -- [description]
-        train_C {[type]} -- [description]
-        test_C {[type]} -- [description]
-        train_P {[type]} -- [description]
-        test_P {[type]} -- [description]
-        train_A {[type]} -- [description]
-        test_A {[type]} -- [description]
-        char_tokenizer {[type]} -- [description]
-        pos_tokenizer {[type]} -- [description]
     """
     discriminator.compile(
         optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -132,46 +122,15 @@ def pretrain_discriminator(discriminator, train_C, test_C, train_P, test_P,
 
     discriminator.fit_generator(
         generator=discriminator_pretrain_batch(
-            train_C, train_P, train_A, char_tokenizer, pos_tokenizer, batch_size=200,
-            chars_len=CHARS_LEN, pos_len=WORDS_LEN),
+            train_W, train_A, word_tokenizer, char_tokenizer, pos_tokenizer,
+            encoder, word_decoder, attention_model,
+            chars_len=CHARS_LEN, pos_len=WORDS_LEN, batch_size=200, shuffle_flag=True),
         steps_per_epoch=100,
         epochs=100, verbose=2,
         validation_data=discriminator_pretrain_batch(
-            test_C, test_P, test_A, char_tokenizer, pos_tokenizer, batch_size=200,
-            chars_len=CHARS_LEN, pos_len=WORDS_LEN),
+            test_W, test_A, word_tokenizer, char_tokenizer, pos_tokenizer,
+            encoder, word_decoder, attention_model,
+            chars_len=CHARS_LEN, pos_len=WORDS_LEN, batch_size=200, shuffle_flag=True),
         validation_steps=1,
         callbacks=[checkpoint_cb]
     )
-
-
-def main():
-    aozora = "./data/sample_aozora.csv"
-    wikipedia = "./data/sample_wikipedia.csv"
-
-    Cs, Ws, Ps, As, tokenizers = load_dataset(
-        [aozora, wikipedia], WORDS_LEN, CHARS_LEN, sample_size=100000)
-    char_tokenizer, word_tokenizer, pos_tokenizer = tokenizers
-
-    # initialize
-    encoder, generator, word_decoder, attention = get_generator(
-        vocab_size=len(word_tokenizer.word_index)+1, emb_dim=1024, hid_dim=1024, att_dim=256,
-        condition_num=21, words_len=WORDS_LEN
-    )
-
-    discriminator = get_discriminator(
-        char_emb_dim=128, num_filters=64, filter_sizes=[2, 3, 4, 5],
-        char_vocab_size=len(char_tokenizer.word_index)+1, chars_len=CHARS_LEN,
-        pos_vocab_size=len(pos_tokenizer.word_index)+1, pos_emb_dim=16, pos_hid_dim=128, pos_len=WORDS_LEN,
-        condition_num=21)
-
-    # pretrain generator
-    pretrain_generator(generator, Ws[0], Ws[1], As[0], As[1],
-                       word_tokenizer, encoder, word_decoder, attention)
-
-    # pretrain discriminator
-    pretrain_discriminator(discriminator, Cs[0], Cs[1], Ps[0], Ps[1], As[0], As[1],
-                           char_tokenizer, pos_tokenizer)
-
-
-if __name__ == "__main__":
-    main()

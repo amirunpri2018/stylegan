@@ -149,3 +149,8 @@ def get_discriminator(
     )
 
     return discriminator
+
+
+def change_trainable(model, trainable=True):
+    pass
+

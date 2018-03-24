@@ -9,11 +9,15 @@ from keras.preprocessing.sequence import pad_sequences
 mecab = MeCab.Tagger("-O chasen")
 
 
+# TODO: 枝刈り
+
+
 class MonteCarloSearchNode:
 
     def __init__(self, parent_node, cond_tokens, token,
                  encoded_seq, y, word_decoder, attention_model, discriminator,
-                 word_tokenizer, char_tokenizer, pos_tokenizer, states_value, sample_size=5, sampled_n=1, search_space=200):
+                 word_tokenizer, char_tokenizer, pos_tokenizer, states_value,
+                 sample_size=5, sampled_n=1, search_space=200):
 
         self.parent = parent_node  # 親のノード rootノードはNone
 
