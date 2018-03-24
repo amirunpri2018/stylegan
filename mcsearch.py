@@ -5,6 +5,7 @@ from collections import Counter
 import MeCab
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
+from keras.utils import np_utils
 
 mecab = MeCab.Tagger("-O chasen")
 
@@ -36,6 +37,7 @@ class MonteCarloSearchNode:
         self.pos_tokenizer = pos_tokenizer
         self.sample_size = sample_size
         self.encoded_seq = encoded_seq
+        self.decoded_seq = None
         self.y = y  # 作家情報
 
         # 計算済みのQ値
@@ -64,6 +66,7 @@ class MonteCarloSearchNode:
         decoded_seq, *states_value = self.word_decoder.predict(
             [np.array([self.token])] + self.states_value
         )
+        self.decoded_seq = decoded_seq
         # Attention
         output_tokens, _ = self.attention_model.predict(
             [self.encoded_seq, decoded_seq, np.array([self.y])]  # 条件がここにつく
@@ -98,7 +101,7 @@ class MonteCarloSearchNode:
                 words = self.word_tokenizer.sequences_to_texts(
                     [self.cond_tokens], return_words=True)[0]
                 text = ''.join(words[1:-1])
-            
+
                 char_input = '<s> ' + ' '.join(text) + ' </s>'
                 chasen = mecab.parse(text).strip()
                 pos_input = [word.split('\t')[3]
@@ -112,13 +115,17 @@ class MonteCarloSearchNode:
 
                 a = np.array(self.y)
 
-                self.qvalue_ = self.discriminator.predict([c, p, a])  # discriminatorによる評価
+                self.qvalue_ = self.discriminator.predict(
+                    [c, p, a])  # discriminatorによる評価
             else:
                 self.qvalue_ = np.sum(
                     [node.sampled_n * node.qvalue() for node in self.children]) / self.sample_size
             return self.qvalue_
 
-
     def get_reward(self):
-        return [np.array([self.token])] + self.states_value + [self.encoded_seq, np.array([self.y])], np.log(self.qvalue() 
+        inputs = [np.array([self.parent.token])]
+        inputs += self.parent.states_value
+        inputs += [self.parent.encoded_seq, self.parent.decoded_seq]
+        inputs += [np.array([self.y]), np_utils.to_categorical([self.token], num_classes=10002)]
 
+        return inputs, self.qvalue_
