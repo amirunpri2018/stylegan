@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 
 from mcsearch import MonteCarloSearchNode
-
+import itertools
 import random
 
 logger = getLogger(__name__)
@@ -356,5 +356,5 @@ def generate_generator_training_data(W, A, word_tokenizer, char_tokenizer, pos_t
 
             mctree.search()
 
-            for x, y in generate_reward_data(mctree)[:100]:  # 1文あたり100個まで
+            for x, y in itertools.islice(generate_reward_data(mctree), 100):
                 yield x, y
