@@ -13,6 +13,8 @@ from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 
+from mcsearch import MonteCarloSearchNode
+
 import random
 
 logger = getLogger(__name__)
@@ -197,7 +199,8 @@ def discriminator_pretrain_batch(W, A, word_tokenizer, char_tokenizer, pos_token
             batch_y = []
 
             # generate nagative sample
-            fake_authors = np.random.choice(AUTHORS, size=batch_size - true_fake_mask.sum()).tolist()
+            fake_authors = np.random.choice(
+                AUTHORS, size=batch_size - true_fake_mask.sum()).tolist()
             fake_wakati_list = generate_fake_text(
                 encoder, word_decoder, attention_model, word_tokenizer,
                 w[~true_fake_mask],
@@ -299,3 +302,41 @@ def generate_fake_text(encoder, word_decoder, attention_model, word_tokenizer, W
         results.append(wakati[1:-1])
 
     return results
+
+
+def generate_reward_data(node):
+    if node.token is None:
+        return
+    for node in node.children:
+        x, y = node.get_reward()
+        yield x, y
+        for x, y in generate_reward_data(node):
+            yield x, y
+
+
+def generate_generator_training_data(W, A, word_tokenizer, char_tokenizer, pos_tokenizer,
+                                     encoder, word_decoder, attention_model, discriminator):
+    while True:
+        W, A = shuffle(W, A)
+        for w, a in zip(W, A):
+            y = np_utils.to_categorical(
+                [AUTHORS.index(a)], num_classes=len(AUTHORS))
+
+            wakatis = ["<s> " + ' '.join(w) + " </s>"]
+            inputs = word_tokenizer.texts_to_sequences(wakatis)
+            inputs = pad_sequences(inputs, maxlen=50)
+            encoded_seq, *states_value = encoder.predict(inputs)
+
+            mctree = MonteCarloSearchNode(
+                None, [word_tokenizer.word_index['<s>']],
+                word_tokenizer.word_index['<s>'],
+                encoded_seq, y, word_decoder, attention_model, discriminator,
+                word_tokenizer, char_tokenizer, pos_tokenizer,
+                states_value, sample_size=10, sampled_n=1
+            )
+
+            mctree.search()  # 時間かかるときはどうしよう。。。
+
+            for x, y in generate_reward_data(mctree)[:100]:  # 1文あたり100個まで
+                yield x, y
+                
