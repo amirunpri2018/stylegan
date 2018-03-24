@@ -91,10 +91,12 @@ def get_generator(vocab_size=1000, emb_dim=128, hid_dim=128, att_dim=1024, condi
     attention_model = Model([encoded_seq_in, decoded_seq_in, condition_in], [attention_outputs, attention])
 
     # Q value function
-    action_input = Input(shape=(vocab_size, ))  # one hot
-    q_value = dot([score, encoded_seq], axes=(2,2))
+    action_input = Input(shape=(vocab_size, ))  # one hot    
+    q_value = dot([attention_outputs, action_input], axes=(2,1))
     q_value_function = Model(
-        [encoder_inputs, word_decoder_states_inputs, encoded_seq_in, condition_in, word_decoder_inputs, action_input],
+        [word_decoder_inputs] + word_decoder_states_inputs + 
+        [encoded_seq_in, decoded_seq_in, condition_in] + 
+        [action_input],
         q_value
     )
 
